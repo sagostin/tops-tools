@@ -20,6 +20,8 @@ ONEVOICE_LNP_API_ENDPOINT = "https://{Environment}/api/v1/orders_lnp/"  # Replac
 
 ucontrol_username = ""
 ucontrol_password = ""
+ucontrol_username_non911 = ""
+ucontrol_password_non911 = ""
 
 
 def get_sip_trunks(ucontrol_username, ucontrol_password):
@@ -188,13 +190,44 @@ def process_ports(numbers: list):
                     print(f"Error: {error}")
 
 
+# ... (previous code)
+
+def check_non911_did_in_thinktel(number_to_check, ucontrol_username_non911, ucontrol_password_non911):
+    try:
+        number_to_check_int = int(number_to_check)
+    except ValueError:
+        print(f"Invalid number provided: {number_to_check}. Please provide a valid 10-digit number.")
+        return False
+
+    trunks_non911 = get_sip_trunks(ucontrol_username_non911, ucontrol_password_non911)
+    for trunk in trunks_non911:
+        trunk_number = trunk.get("Number")
+        if trunk_number:
+            dids = get_dids_for_trunk(trunk_number, ucontrol_username_non911, ucontrol_password_non911)
+            for did in dids:
+                did_number = did.get("Number")
+                if did_number == number_to_check_int:
+                    print(f"The number {number_to_check} exists as a non-911 DID.")
+                    return True
+
+    print(f"The number {number_to_check} is NOT valid.")
+    return False
+
+
+# ... (previous code)
+
 if __name__ == "__main__":
+    customer_name = input("Enter the customer name: ")  # Take customer name at the beginning
+    customer_name = "porting/" + customer_name
+
     numbers_str = input("Enter a list of 10-digit phone numbers separated by commas: ")
     numbers = [num.strip() for num in numbers_str.split(",")]
 
     rate_center_groups = defaultdict(list)
     info911_dict = {}
     numbers_911 = []
+    invalid_numbers = []
+    npa_nxx_info_dict = {}  # Dictionary to store npa-nxx info for valid numbers
 
     for number in numbers:
         is911 = check_did_in_thinktel(number, ucontrol_username, ucontrol_password)
@@ -205,35 +238,52 @@ if __name__ == "__main__":
             info911_dict[number] = info911
             numbers_911.append(number)
         else:
-            npa, nxx = get_npa_nxx(number)
-            info = request_npa_nxx_info(npa, nxx)
-            rate_center = info['rc']
-            rate_center_groups[rate_center].append(number)
-            print(f"Number {number} belongs to rate center: {rate_center}")
+            # Check if it's a non-911 number using non-911 credentials
+            is_non911 = check_non911_did_in_thinktel(number, ucontrol_username_non911, ucontrol_password_non911)
+            if is_non911:
+                npa, nxx = get_npa_nxx(number)
+                info = request_npa_nxx_info(npa, nxx)
+                rate_center = info['rc']
+                rate_center_groups[rate_center].append(number)
+                print(f"Number {number} belongs to rate center: {rate_center}")
 
-    if len(numbers_911) == 1:
-        # If there's only one 911 number, print its info for other numbers
-        for number in numbers:
-            if number not in numbers_911:
-                print(f"911 Info - {number}: " + str(info911_dict[numbers_911[0]]))
-    elif len(numbers_911) > 1:
-        # If there are multiple 911 numbers, print their info
-        for number in numbers_911:
-            print(f"911 Info - {number}: " + str(info911_dict[number]))
-        print("Requires human intervention. Multiple 911 numbers found.")
-    else:
-        # If there are no 911 numbers, proceed to process numbers
-        if len(rate_center_groups) == 1:
-            print("All numbers belong to the same rate center.")
-            process_ports(numbers)
-        else:
-            for rc, nums in rate_center_groups.items():
-                print(f"Processing port for rate center: {rc}")
-                process_ports(nums)
+                # Store npa-nxx info in the dictionary
+                npa_nxx_info_dict[number] = {
+                    'NPA': npa,
+                    'NXX': nxx,
+                    'Block': info['x'],
+                    'RateCenter': rate_center,
+                    'Region': info['region'],
+                    'Switch': info['switch'],
+                    'OCN': info['ocn'],  # Adjust the key according to your data
+                    # Add more fields as needed
+                }
+            else:
+                invalid_numbers.append(number)
+
+    # Handle multiple 911 numbers
+    if len(numbers_911) > 0:
+        # Export the data of multiple 911 numbers to a separate text file
+        with open(f"{customer_name}-Thinktel911.txt", 'w') as txt_file:
+            for number in numbers_911:
+                txt_file.write(f"911 Info - {number}: {str(info911_dict[number])}\n")
+        print(f"911 Info for multiple numbers has been saved to {customer_name}-Thinktel911.txt")
+
+    # ... (rest of the code remains the same)
+
+    # Export npa-nxx info to a separate text file
+    with open(f"{customer_name}-NpaNxxInfo.txt", 'w') as txt_file:
+        for number, info in npa_nxx_info_dict.items():
+            txt_file.write(f"NPA-NXX Info - {number}: {info}\n")
+    print(f"NPA-NXX Info has been saved to {customer_name}-NpaNxxInfo.txt")
+
+    with open(f"{customer_name}-InvalidNumbers.txt", 'w') as txt_file:
+        for number in invalid_numbers:
+            txt_file.write(f"Invalid Number - {number}\n")
+    print(f"Invalid Numbers have been saved to {customer_name}-InvalidNumbers.txt")
 
     # Export the data to a CSV file
-    csv_file_path = input("Enter the customer name (without `-N911.csv`): ")
-    with open(csv_file_path + "-N911.csv", 'w', newline='') as csv_file:
+    with open(f"{customer_name}-N911.csv", 'w', newline='') as csv_file:
         fieldnames = [
             'PhoneNumber',
             'LastName',
@@ -251,7 +301,7 @@ if __name__ == "__main__":
         writer.writeheader()
 
         for number in numbers:
-            if numbers_911.__contains__(number):
+            if numbers_911.__contains__(number) or invalid_numbers.__contains__(number):
                 continue
 
             multiple911 = len(numbers_911) <= 1
@@ -272,3 +322,5 @@ if __name__ == "__main__":
                 'EnhancedCapable': 'N'
             }
             writer.writerow(data)
+
+    print(f"Data has been exported to {customer_name}-N911.csv")
