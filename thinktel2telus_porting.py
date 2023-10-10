@@ -186,11 +186,6 @@ def process_ports(numbers: list):
                 for error in errors:
                     print(f"Error: {error}")
 
-
-from collections import defaultdict
-import csv
-import json
-
 if __name__ == "__main__":
     numbers_str = input("Enter a list of 10-digit phone numbers separated by commas: ")
     numbers = [num.strip() for num in numbers_str.split(",")]
@@ -213,6 +208,7 @@ if __name__ == "__main__":
             info = request_npa_nxx_info(npa, nxx)
             rate_center = info['rc']
             rate_center_groups[rate_center].append(number)
+            print(f"Number {number} belongs to rate center: {rate_center}")
 
     if len(numbers_911) == 1:
         # If there's only one 911 number, print its info for other numbers
