@@ -21,7 +21,5 @@ fileName = str(input("Enter output file name with extension: "))
 
 for user in users:
     f = open(fileName, "a")
-    f.write("You have reached " + user['firstname'] + " " + user['lastname'] + " @ "+user['extension']+", Please "
-                                                                                                       "leave a "
-                                                                                                       "message.\n")
+    f.write("You have reached " + user['firstname'] + " " + user['lastname'] + " @ extension "+user['extension']+", if this is an emergency or if you have reached the wrong voicemail, press 0 now. Otherwise remain on the line to leave a message.\n")
     f.close()
