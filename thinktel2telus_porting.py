@@ -187,6 +187,7 @@ def process_ports(numbers: list):
                 for error in errors:
                     print(f"Error: {error}")
 
+
 if __name__ == "__main__":
     numbers_str = input("Enter a list of 10-digit phone numbers separated by commas: ")
     numbers = [num.strip() for num in numbers_str.split(",")]
@@ -214,11 +215,11 @@ if __name__ == "__main__":
         # If there's only one 911 number, print its info for other numbers
         for number in numbers:
             if number not in numbers_911:
-                print(f"911 Info (fetched from ThinkTel 911) - {number}: " + str(info911_dict[numbers_911[0]]))
+                print(f"911 Info - {number}: " + str(info911_dict[numbers_911[0]]))
     elif len(numbers_911) > 1:
         # If there are multiple 911 numbers, print their info
         for number in numbers_911:
-            print(f"911 Info (fetched from ThinkTel 911) - {number}: " + str(info911_dict[number]))
+            print(f"911 Info - {number}: " + str(info911_dict[number]))
         print("Requires human intervention. Multiple 911 numbers found.")
     else:
         # If there are no 911 numbers, proceed to process numbers
@@ -231,8 +232,8 @@ if __name__ == "__main__":
                 process_ports(nums)
 
     # Export the data to a CSV file
-    csv_file_path = input("Enter the filename/path for the CSV file: ")
-    with open(csv_file_path, 'w', newline='') as csv_file:
+    csv_file_path = input("Enter the customer name (without `-N911.csv`): ")
+    with open(csv_file_path + "-N911.csv", 'w', newline='') as csv_file:
         fieldnames = [
             'PhoneNumber',
             'LastName',
@@ -250,20 +251,24 @@ if __name__ == "__main__":
         writer.writeheader()
 
         for number in numbers:
-            is911 = number in numbers_911
+            if numbers_911.__contains__(number):
+                continue
+
+            multiple911 = len(numbers_911) <= 1
+
+            n = info911_dict[numbers_911[0]]
+
             data = {
                 'PhoneNumber': str(number),
-                'LastName': info911_dict[number]['LastName'] if is911 else "",
-                'FirstName': info911_dict[number]['FirstName'] if is911 else "",
-                'StreetNumber': info911_dict[number]['StreetNumber'] if is911 else "",
-                'SuiteApt': info911_dict[number]['SuiteNumber'] if is911 else "",
-                'StreetName': info911_dict[number]['StreetName'] if is911 else "",
-                'City': info911_dict[number]['City'] if is911 else "",
-                'ProvinceState': info911_dict[number]['ProvinceState'] if is911 else "",
-                'PostalCodeZip': info911_dict[number]['PostalZip'] if is911 else "",
-                'OtherAddressInfo': info911_dict[number]['OtherInfo'] if is911 else "",
-                'EnhancedCapable': 'N' if is911 else 'N'
+                'LastName': n['LastName'] if multiple911 else "",
+                'FirstName': n['FirstName'] if multiple911 else "",
+                'StreetNumber': n['StreetNumber'] if multiple911 else "",
+                'SuiteApt': n['SuiteNumber'] if multiple911 else "",
+                'StreetName': n['StreetName'] if multiple911 else "",
+                'City': n['City'] if not multiple911 else "",
+                'ProvinceState': n['ProvinceState'] if multiple911 else "",
+                'PostalCodeZip': n['PostalZip'] if multiple911 else "",
+                'OtherAddressInfo': n['OtherInfo'] if multiple911 else "",
+                'EnhancedCapable': 'N'
             }
-            if not is911:
-                writer.writerow(data)
-
+            writer.writerow(data)
