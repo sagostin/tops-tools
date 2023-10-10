@@ -218,7 +218,7 @@ if __name__ == "__main__":
         # If there's only one 911 number, print its info for other numbers
         for number in numbers:
             if number not in numbers_911:
-                print(f"911 Info (fetched from ThinkTel) - {number}: " + str(info911))
+                print(f"911 Info (fetched from ThinkTel 911) - {number}: " + str(info911))
     elif len(numbers_911) > 1:
         # If there are multiple 911 numbers, throw an error
         print("Error: Multiple 911 numbers detected. Requires human intervention.")
