@@ -1,3 +1,4 @@
+import csv
 import datetime
 from collections import defaultdict
 from xml.etree import ElementTree
@@ -191,18 +192,17 @@ if __name__ == "__main__":
     numbers = [num.strip() for num in numbers_str.split(",")]
 
     rate_center_groups = defaultdict(list)
-    info911 = None
+    info911_dict = {}
     numbers_911 = []
 
     for number in numbers:
         is911 = check_did_in_thinktel(number, ucontrol_username, ucontrol_password)
 
         if is911:
-            # If it's a 911 number, increment the count and store its info
+            # If it's a 911 number, store its info in the dictionary
+            info911 = get_911_info_for_number(number, ucontrol_username, ucontrol_password)
+            info911_dict[number] = info911
             numbers_911.append(number)
-
-            if len(numbers_911) == 1:
-                info911 = get_911_info_for_number(number, ucontrol_username, ucontrol_password)
         else:
             npa, nxx = get_npa_nxx(number)
             info = request_npa_nxx_info(npa, nxx)
@@ -214,10 +214,12 @@ if __name__ == "__main__":
         # If there's only one 911 number, print its info for other numbers
         for number in numbers:
             if number not in numbers_911:
-                print(f"911 Info (fetched from ThinkTel 911) - {number}: " + str(info911))
+                print(f"911 Info (fetched from ThinkTel 911) - {number}: " + str(info911_dict[numbers_911[0]]))
     elif len(numbers_911) > 1:
-        # If there are multiple 911 numbers, throw an error
-        print("Error: Multiple 911 numbers detected. Requires human intervention.")
+        # If there are multiple 911 numbers, print their info
+        for number in numbers_911:
+            print(f"911 Info (fetched from ThinkTel 911) - {number}: " + str(info911_dict[number]))
+        print("Requires human intervention. Multiple 911 numbers found.")
     else:
         # If there are no 911 numbers, proceed to process numbers
         if len(rate_center_groups) == 1:
@@ -248,19 +250,20 @@ if __name__ == "__main__":
         writer.writeheader()
 
         for number in numbers:
-            is911 = numbers_911.__contains__(number)
+            is911 = number in numbers_911
             data = {
                 'PhoneNumber': str(number),
-                'LastName': info911['LastName'],
-                'FirstName': info911['FirstName'],
-                'StreetNumber': info911['StreetNumber'],
-                'SuiteApt': info911['SuiteNumber'],
-                'StreetName': info911['StreetName'],
-                'City': info911['City'],
-                'ProvinceState': info911['ProvinceState'],
-                'PostalCodeZip': info911['PostalZip'],
-                'OtherAddressInfo': info911['OtherInfo'],
+                'LastName': info911_dict[number]['LastName'] if is911 else "",
+                'FirstName': info911_dict[number]['FirstName'] if is911 else "",
+                'StreetNumber': info911_dict[number]['StreetNumber'] if is911 else "",
+                'SuiteApt': info911_dict[number]['SuiteNumber'] if is911 else "",
+                'StreetName': info911_dict[number]['StreetName'] if is911 else "",
+                'City': info911_dict[number]['City'] if is911 else "",
+                'ProvinceState': info911_dict[number]['ProvinceState'] if is911 else "",
+                'PostalCodeZip': info911_dict[number]['PostalZip'] if is911 else "",
+                'OtherAddressInfo': info911_dict[number]['OtherInfo'] if is911 else "",
                 'EnhancedCapable': 'N' if is911 else 'N'
             }
             if not is911:
                 writer.writerow(data)
+
