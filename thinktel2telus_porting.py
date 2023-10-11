@@ -13,7 +13,7 @@ def load_private_key_from_file() -> str:
         return file.read()
 
 
-PRIVATE_KEY = load_private_key_from_file()
+#PRIVATE_KEY = load_private_key_from_file()
 SECURITY_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"  # provided by OneVoice
 APPLICATION_NAME = "YourAppName"  # Replace with your application's name
 ONEVOICE_LNP_API_ENDPOINT = "https://{Environment}/api/v1/orders_lnp/"  # Replace with the actual OneVoice API endpoint
@@ -127,9 +127,9 @@ def generate_jwt(application_name: str) -> str:
         "typ": "JWT"
     }
 
-    token = jwt.encode(payload, PRIVATE_KEY, algorithm='RS256', headers=headers)
+    #token = jwt.encode(payload, PRIVATE_KEY, algorithm='RS256', headers=headers)
 
-    return token
+    return None
 
 
 def request_with_jwt(url: str, jwt_token: str) -> requests.Response:
@@ -300,13 +300,21 @@ if __name__ == "__main__":
         writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
         writer.writeheader()
 
+        multiple911 = False
+
         for number in numbers:
-            if numbers_911.__contains__(number) or invalid_numbers.__contains__(number):
+            # Check if it's in numbers_911 or invalid_numbers
+
+            if number in numbers_911:
+                multiple911 = len(numbers_911) > 1
+                if multiple911:
+                    n = {}  # Blank fields
+                else:
+                    n = info911_dict[numbers_911[0]]
+            elif number in invalid_numbers:
                 continue
-
-            multiple911 = len(numbers_911) <= 1
-
-            n = info911_dict[numbers_911[0]]
+            else:
+                n = npa_nxx_info_dict[number]
 
             data = {
                 'PhoneNumber': str(number),
@@ -315,7 +323,7 @@ if __name__ == "__main__":
                 'StreetNumber': n['StreetNumber'] if multiple911 else "",
                 'SuiteApt': n['SuiteNumber'] if multiple911 else "",
                 'StreetName': n['StreetName'] if multiple911 else "",
-                'City': n['City'] if not multiple911 else "",
+                'City': n['City'] if multiple911 else "",
                 'ProvinceState': n['ProvinceState'] if multiple911 else "",
                 'PostalCodeZip': n['PostalZip'] if multiple911 else "",
                 'OtherAddressInfo': n['OtherInfo'] if multiple911 else "",
@@ -323,4 +331,4 @@ if __name__ == "__main__":
             }
             writer.writerow(data)
 
-    print(f"Data has been exported to {customer_name}-N911.csv")
+print(f"Data has been exported to {customer_name}-N911.csv")
